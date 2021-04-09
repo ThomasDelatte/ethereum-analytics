@@ -31,7 +31,7 @@ def data_pipeline(df):
     return pipe, results
 
 def cluster(results, n_clusters):
-    cl = KMeans(n_clusters, n_init=20, max_iter=500, n_jobs=-1, verbose=0)
+    cl = KMeans(n_clusters=n_clusters, n_init=20, max_iter=500, n_jobs=-1, verbose=0)
     return cl.fit(results)
 
 def calc_tsne(results, n_components=2, perplexity=20, n_iter=300):
@@ -67,8 +67,8 @@ def plot_tsne(clusters, tsne_results):
     plt.ylabel('second principal component')
     plt.show()
     
-    def plot_tsne_with_labels(tsne_results,df, dflabel,categs,colors):
-    #need to mask df based on which results were kept from the reclustering
+def plot_tsne_with_labels(tsne_results,df, dflabel,categs,colors):
+#need to mask df based on which results were kept from the reclustering
     
     labeled_addresses = dflabel["ethereum_address"].values
     labelmask = np.array([addr in labeled_addresses for addr in df["ethereum_address"] ] )
