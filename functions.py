@@ -3,11 +3,13 @@ import random
 import time
 
 import matplotlib.pyplot as plt
+plt.style.use("fivethirtyeight")
+
 import numpy as np
 import pandas as pd
 
 from sklearn import cluster
-from sklearn.metrics import silhouette_score, silhouette_samples
+from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import StandardScaler, FunctionTransformer
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
@@ -15,65 +17,78 @@ from sklearn.cluster import KMeans
 from sklearn.manifold import TSNE
 
 
-def data_pipeline(df):
+def data_preprocessing(df):
+    """Takes a DataFrame, removes columns and applies transformations (log, scale, pca)"""
     # Strip address and label columns
     data = df.iloc[:,1:-1]
     log = FunctionTransformer(func=np.log1p, inverse_func=np.expm1, validate=True)
     scale = StandardScaler()
     pca = PCA(n_components=data.shape[1])
     
-    # Build pipeline
     pipe = Pipeline([('log', log ),
-                     ('scale', scale ),
+                     ('scale', scale),
                      ('PCA', pca)])
-    results = pipe.fit_transform(data)
     
-    return pipe, results
+    processed_data = pipe.fit_transform(data)
+    return processed_data
 
-def cluster(results, n_clusters):
+def plot_silhouette_scores(data, min_clusters, max_clusters)
+    """Calculate silhouette scores for each k number of clusters and plot it."""
+    
+    silhouette_scores = [] 
+    K = range(min_clusters, max_clusters) 
+
+    for k in K:
+        clusterer = KMeans(n_clusters=k, n_init=20, max_iter=500, random_state=0)
+        preds = clusterer.fit_predict(data)
+        score = silhouette_score(data, preds)
+        silhouette_scores.append(score)
+
+    # Lineplot using silhouette score
+    plt.plot(K, silhouette_scores) 
+    plt.title('The Silhouette Method') 
+    plt.xlabel('K - Number of Clusters') 
+    plt.ylabel('Silhouette score') 
+    plt.show()
+
+def make_clusters(processed_data, n_clusters):
+    """Takes processed data, the desired number of clusters and returns results."""
     cl = KMeans(n_clusters=n_clusters, n_init=20, max_iter=500, n_jobs=-1, verbose=0)
-    return cl.fit(results)
+    return cl.fit(processed_data)
 
-def calc_tsne(results, n_components=2, perplexity=20, n_iter=300):
-    '''
-    Calculated tsne for dataset'''
-    tsne = TSNE(n_components=n_components, perplexity=perplexity, n_iter=n_iter, learning_rate=100)
-    tsne_results = tsne.fit_transform(results)
+def calc_tsne(processed_data, perplexity=20, n_components=2):
+    """Dimensionality reduction by calculating t-SNE."""
+    tsne = TSNE(n_components=n_components, perplexity=perplexity, n_iter=500, learning_rate=100)
+    tsne_results = tsne.fit_transform(processed_data)
     return tsne_results
 
 def plot_tsne(clusters, tsne_results):
-    '''
-    plot'''
+    """Plot the clusters found by reducing dimensions with calc_tsne."""
     
-    cm = plt.get_cmap('nipy_spectral')
-
     fig = plt.figure(figsize=(15,12))
     ax = fig.add_subplot(111)
 
-    for c in np.unique(clusters):
-        mask = clusters ==c
-        if np.sum(mask) <1:
-            lbl = '_nolegend_'
-        else:
-            lbl = c
-        plt.scatter(tsne_results[mask][:,0], tsne_results[mask][:,1], s=20, alpha=.4,label=lbl)
+    for cluster in np.unique(clusters):
+        mask = clusters == cluster
+        plt.scatter(tsne_results[mask][:,0], tsne_results[mask][:,1], s=20, alpha=.5, label=cluster)
 
-    leg = plt.legend(bbox_to_anchor=(1, 1))
-    for lh in leg.legendHandles: 
+    legend = plt.legend(bbox_to_anchor=(1, 1))
+    for lh in legend.legendHandles: 
         lh.set_alpha(1)
 
-    plt.title('T-SNE', fontsize=20)
-    plt.xlabel('first principal component')
-    plt.ylabel('second principal component')
+    plt.title("Clusters: T-SNE", fontsize=20)
+    plt.xlabel("First Principal Component")
+    plt.ylabel("Second Principal Component")
     plt.show()
     
-def plot_tsne_with_labels(tsne_results,df, dflabel,categs,colors):
-#need to mask df based on which results were kept from the reclustering
+def plot_tsne_with_labels(tsne_results, df, dflabel, categs, colors):
+    """Plot the clusters but only highlighting the data points with labels.
+    Credit to Will Price for inspiration (https://github.com/willprice221/code2vec)"""
     
     labeled_addresses = dflabel["ethereum_address"].values
     labelmask = np.array([addr in labeled_addresses for addr in df["ethereum_address"] ] )
     
-    #helper function for category mask
+    # Helper function for category mask
     def cat(addr, labeled_addresses, dflabel):
         if addr not in labeled_addresses:
             return False
@@ -91,10 +106,6 @@ def plot_tsne_with_labels(tsne_results,df, dflabel,categs,colors):
 
     for c in list(dflabel["Entity"].unique()):
         mask = dflabel["Entity"]==c
-        if np.sum(mask) < 1:
-            lbl = '_nolegend_'
-        else:
-            lbl = c
 
         #category mask
         catmask = cats == c
@@ -103,25 +114,27 @@ def plot_tsne_with_labels(tsne_results,df, dflabel,categs,colors):
             idx=categs.index(c)
             color = colors[idx]
 
-            plt.scatter(tsne_results[(labelmask & catmask)][:,0], tsne_results[(labelmask & catmask)][:,1], s=20, c=color, alpha=1, label=lbl)
+            plt.scatter(tsne_results[(labelmask & catmask)][:,0], tsne_results[(labelmask & catmask)][:,1], s=20, c=color, alpha=1, label=c)
 
-    leg = plt.legend(bbox_to_anchor=(1, 1))
-    for lh in leg.legendHandles: 
+    legend = plt.legend(bbox_to_anchor=(1, 1))
+    for lh in legend.legendHandles: 
         lh.set_alpha(1)
 
-    plt.title('T-SNE', fontsize=20)
-    plt.xlabel('first principal component')
-    plt.ylabel('second principal component')
+    plt.title("Clusters - Labeled Data Points: T-SNE", fontsize=20)
+    plt.xlabel("First Principal Component")
+    plt.ylabel("Second Principal Component")
     plt.show()
     
-def assign_cluster_to_data(df, clusters):
+def add_clusters_to_df(df, clusters):
+    """Add the found clusters to the data."""
     df_with_clusters = df.copy()
     df_with_clusters["cluster"] = -1
     for i, row in df_with_clusters.iterrows():
-        df_with_clusters.iat[i, 30] = clusters[i]
+        df_with_clusters.iat[i, -1] = clusters[i]
     return df_with_clusters
 
-def find_category_of_cluster(clusters, dflabel, category="Exchange"):
+def show_distribution_of_clusters(clusters, dflabel, category):
+    """Show how labeled data is distributed among the clusters."""
     type_cluster = 0
     num_of_type = 0
     lbl_density = 0
@@ -135,5 +148,5 @@ def find_category_of_cluster(clusters, dflabel, category="Exchange"):
             lbl_density=density
             num_of_type = num
             type_cluster = clust
-        print(f"Cluster number   {clust}   number of type found: {num}    cluster size: {size_of_cluster}   label density: {density}")
-    return type_cluster
+        print(f"Cluster number {clust} has {size_of_cluster} addresses, including {num} addresses labeled as {category} (label density: {density}).")   
+    return None
