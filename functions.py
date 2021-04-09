@@ -115,10 +115,11 @@ def plot_tsne_with_labels(tsne_results,df, dflabel,categs,colors):
     plt.show()
     
 def assign_cluster_to_data(df, clusters):
-    df["cluster"] = 10
-    for i, row in df.iterrows():
-        df.iat[i, 30] = clusters[i]
-    return None
+    df_with_clusters = df.copy()
+    df_with_clusters["cluster"] = -1
+    for i, row in df_with_clusters.iterrows():
+        df_with_clusters.iat[i, 30] = clusters[i]
+    return df_with_clusters
 
 def find_category_of_cluster(clusters, dflabel, category="Exchange"):
     type_cluster = 0
