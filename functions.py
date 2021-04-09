@@ -34,20 +34,19 @@ def data_preprocessing(df):
 
 def plot_silhouette_scores(data, min_clusters, max_clusters)
     """Calculate silhouette scores for each k number of clusters and plot it."""
-    
     silhouette_scores = [] 
-    K = range(min_clusters, max_clusters) 
+    range_of_clusters = range(min_clusters, max_clusters) 
 
-    for k in K:
+    for k in range_of_clusters:
         clusterer = KMeans(n_clusters=k, n_init=20, max_iter=500, random_state=0)
         preds = clusterer.fit_predict(data)
         score = silhouette_score(data, preds)
         silhouette_scores.append(score)
 
     # Lineplot using silhouette score
-    plt.plot(K, silhouette_scores) 
+    plt.plot(range_of_clusters, silhouette_scores) 
     plt.title('The Silhouette Method') 
-    plt.xlabel('K - Number of Clusters') 
+    plt.xlabel('Number of Clusters') 
     plt.ylabel('Silhouette score') 
     plt.show()
 
